@@ -3,7 +3,6 @@ package handler
 import (
 	"bytes"
 	"io"
-	"io/ioutil"
 	"keytiles-proxy/handler/header"
 	"log"
 	"net/http"
@@ -36,7 +35,7 @@ func NewScriptHandler(hosts []string, upstream *url.URL, allowedHeaders map[stri
 			body = bytes.ReplaceAll(body, []byte(keytilesHost1), []byte(hosts[0]))
 			body = bytes.ReplaceAll(body, []byte(keytilesHost2), []byte(hosts[1]))
 
-			r.Body = ioutil.NopCloser(bytes.NewReader(body))
+			r.Body = io.NopCloser(bytes.NewReader(body))
 			r.ContentLength = int64(len(body))
 			r.Header.Set("Content-Length", strconv.Itoa(len(body)))
 		}

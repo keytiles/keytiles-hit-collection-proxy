@@ -1,13 +1,11 @@
 package handler
 
 import (
-	"io/ioutil"
-	"net"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
-	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -69,7 +67,7 @@ func TestUpstreamScriptEndpoint(t *testing.T) {
 			// then
 			actualRes := res.Result()
 			defer actualRes.Body.Close()
-			actualBody, err := ioutil.ReadAll(actualRes.Body)
+			actualBody, err := io.ReadAll(actualRes.Body)
 			assert.NoError(t, err)
 
 			assert.Equal(t, tc.mockStatusCode, actualRes.StatusCode)
@@ -77,18 +75,6 @@ func TestUpstreamScriptEndpoint(t *testing.T) {
 			assert.True(t, tc.headerCheck(res.Header()))
 		})
 	}
-}
-
-func getAddr() string {
-	l, err := net.Listen("tcp", ":0")
-	if err != nil {
-		panic(err)
-	}
-
-	port := l.Addr().(*net.TCPAddr).Port
-	addr := ":" + strconv.Itoa(port)
-
-	return addr
 }
 
 func mockKeytilesScriptResponse(statusCode int) *httptest.Server {

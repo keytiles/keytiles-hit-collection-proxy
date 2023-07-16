@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -85,7 +85,7 @@ func TestAPIEndpoint(t *testing.T) {
 func assertResponse(t *testing.T, res *httptest.ResponseRecorder, status int) {
 	actualRes := res.Result()
 	defer actualRes.Body.Close()
-	actualBody, err := ioutil.ReadAll(actualRes.Body)
+	actualBody, err := io.ReadAll(actualRes.Body)
 	assert.NoError(t, err)
 	assert.Equal(t, getKTAPIResponse(status), string(actualBody))
 }
