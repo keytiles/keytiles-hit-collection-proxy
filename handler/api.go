@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"keytiles-proxy/handler/header"
 	"log"
 	"net"
 	"net/http"
@@ -11,17 +12,20 @@ import (
 
 type APIHandler struct {
 	proxy *httputil.ReverseProxy
-	hosts []string
 }
 
-func NewAPIHandler(hosts []string, upstreams []*url.URL) http.Handler {
+func NewAPIHandler(hosts []string, upstreams []*url.URL, allowedHeaders map[string]any) http.Handler {
 	if len(hosts) != len(upstreams) {
 		log.Panic("number of hosts and kt upstreams does not match.")
 	}
 
 	hostToProxy := make(map[string]*url.URL, len(hosts))
 	for i, h := range hosts {
-		hostToProxy[h] = upstreams[i]
+		hostname, err := extractHostname(h)
+		if err != nil {
+			log.Panicf("invalid host %v", h)
+		}
+		hostToProxy[hostname] = upstreams[i]
 	}
 
 	director := func(req *http.Request) {
@@ -45,19 +49,24 @@ func NewAPIHandler(hosts []string, upstreams []*url.URL) http.Handler {
 		} else {
 			req.URL.RawQuery = targetQuery + "&" + req.URL.RawQuery
 		}
+
+		// anonymise IP address before forwarding to Keytiles.
+		ip := header.AnonymiseIP(req.Header, req.RemoteAddr)
+		req.Header.Set(header.XForwardedFor, ip)
+
+		// allow only whitelisted headers to be forwarded.
+		header.WhitelistHeaders(req.Header, allowedHeaders)
+		log.Printf("Sending to host %v", req.URL.Host)
 	}
-	proxy := &httputil.ReverseProxy{Director: director}
 
 	return &APIHandler{
-		proxy: proxy,
-		hosts: hosts,
+		proxy: &httputil.ReverseProxy{Director: director},
 	}
 }
 
 func (ah *APIHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log.Println(r.URL)
 
-	// r.Host = ah.Remote.Host
 	ah.proxy.ServeHTTP(w, r)
 }
 
@@ -98,9 +107,21 @@ func singleJoiningSlash(a, b string) string {
 
 // extracts hostname from host.
 func extractHostname(host string) (string, error) {
+	// handle http://blabla.com or http://blabla.com:8080 case
+	if strings.HasPrefix(host, "http") {
+		url, err := url.Parse(host)
+		if err != nil {
+			return "", err
+		}
+		host = url.Host
+	}
+
+	// handle blabla.com case
 	if !strings.Contains(host, ":") {
 		return host, nil
 	}
+
+	// handle blabla.com:8080 case
 	hostname, _, err := net.SplitHostPort(host)
 	if err != nil {
 		return "", err

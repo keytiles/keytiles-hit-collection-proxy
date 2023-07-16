@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"io/ioutil"
+	"keytiles-proxy/handler/header"
 	"log"
 	"net/http"
 	"net/http/httputil"
@@ -17,11 +18,10 @@ const (
 )
 
 type ScriptHandler struct {
-	Proxy    *httputil.ReverseProxy
-	Upstream *url.URL
+	Proxy *httputil.ReverseProxy
 }
 
-func NewScriptHandler(hosts []string, upstream *url.URL) http.Handler {
+func NewScriptHandler(hosts []string, upstream *url.URL, allowedHeaders map[string]any) http.Handler {
 	scriptProxy := httputil.NewSingleHostReverseProxy(upstream)
 	scriptProxy.ModifyResponse = func(r *http.Response) error {
 		if r.StatusCode == 200 {
@@ -43,14 +43,21 @@ func NewScriptHandler(hosts []string, upstream *url.URL) http.Handler {
 		return nil
 	}
 
+	scriptProxy.Director = func(req *http.Request) {
+		// anonymise IP address before forwarding to Keytiles.
+		ip := header.AnonymiseIP(req.Header, req.RemoteAddr)
+		req.Header.Set(header.XForwardedFor, ip)
+
+		// allow only whitelisted headers to be forwarded.
+		header.WhitelistHeaders(req.Header, allowedHeaders)
+	}
+
 	return &ScriptHandler{
-		Proxy:    scriptProxy,
-		Upstream: upstream,
+		Proxy: scriptProxy,
 	}
 }
 
 func (sh *ScriptHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log.Println(r.URL)
-	//r.Host = sh.Upstream.Host
 	sh.Proxy.ServeHTTP(w, r)
 }

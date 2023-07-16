@@ -63,7 +63,7 @@ func TestUpstreamScriptEndpoint(t *testing.T) {
 			url, _ := url.Parse(server.URL)
 
 			// when
-			handler := NewScriptHandler(hosts, url)
+			handler := NewScriptHandler(hosts, url, nil)
 			handler.ServeHTTP(res, req)
 
 			// then

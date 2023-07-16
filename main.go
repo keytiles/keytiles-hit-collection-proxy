@@ -10,15 +10,22 @@ import (
 	"keytiles-proxy/handler"
 )
 
-var DEAFULT_PORT = ":9999"
+var (
+	DEAFULT_PORT           = ":9999"
+	FixedWhitlistedHeaders = []string{
+		"Content-Type",
+		"Content-Length",
+	}
+)
 
 type config struct {
 	port  string
 	hosts []string
 
 	// KT config
-	ktScriptUpstream *url.URL
-	ktAPIUpstreams   []*url.URL
+	ktScriptUpstream  *url.URL
+	ktAPIUpstreams    []*url.URL
+	whitlistedHeaders map[string]any
 
 	// TLS config
 	cert string
@@ -28,12 +35,13 @@ type config struct {
 func main() {
 
 	c := config{
-		port:             readPort(),
-		hosts:            readHosts("HOSTS"),
-		ktScriptUpstream: hostToURL(os.Getenv("KT_SCRIPT_HOST")),
-		ktAPIUpstreams:   hostsToURLs(readHosts("KT_API_HOSTS")),
-		cert:             os.Getenv("TLS_CERT"),
-		key:              os.Getenv("CERT_KEY"),
+		port:              readPort(),
+		hosts:             readHosts("HOSTS"),
+		ktScriptUpstream:  hostToURL(os.Getenv("KT_SCRIPT_HOST")),
+		ktAPIUpstreams:    hostsToURLs(readHosts("KT_API_HOSTS")),
+		whitlistedHeaders: readWhitelistedHeaders(),
+		cert:              os.Getenv("TLS_CERT"),
+		key:               os.Getenv("CERT_KEY"),
 	}
 	log.Printf("starting keytiles proxy server on port %v...", c.port)
 	run(c)
@@ -41,8 +49,8 @@ func main() {
 
 func run(c config) {
 	mux := http.NewServeMux()
-	mux.Handle("/tracking/", handler.NewScriptHandler(c.hosts, c.ktScriptUpstream))
-	mux.Handle("/", handler.NewAPIHandler(c.hosts, c.ktAPIUpstreams))
+	mux.Handle("/tracking/", handler.NewScriptHandler(c.hosts, c.ktScriptUpstream, c.whitlistedHeaders))
+	mux.Handle("/", handler.NewAPIHandler(c.hosts, c.ktAPIUpstreams, c.whitlistedHeaders))
 
 	var err error
 	if len(c.cert) > 1 && len(c.key) > 1 {
@@ -52,7 +60,7 @@ func run(c config) {
 	}
 
 	if err != nil {
-		panic(err)
+		log.Panic(err)
 	}
 }
 
@@ -61,7 +69,7 @@ func readHosts(env string) []string {
 	hosts := strings.Split(hostnames, ",")
 
 	if len(hosts) == 0 {
-		panic("Atleast one host name is required.")
+		log.Panic("Atleast one host name is required.")
 	}
 	if len(hosts) == 1 {
 		return []string{hosts[0], hosts[1]}
@@ -84,16 +92,34 @@ func hostsToURLs(hosts []string) []*url.URL {
 func hostToURL(host string) *url.URL {
 	url, err := url.Parse(host)
 	if err != nil {
-		panic(err)
+		log.Panic(err)
 	}
 	return url
 }
 
 func readPort() string {
 	port := os.Getenv("PORT")
-	if len(port) < 1 {
+	if len(port) == 0 {
 		return DEAFULT_PORT
 	}
 
 	return ":" + port
+}
+
+func readWhitelistedHeaders() map[string]any {
+	headers := make(map[string]any, 0)
+	// add fixed whitelisted headers
+	for _, header := range FixedWhitlistedHeaders {
+		headers[header] = nil
+	}
+
+	// get user defined whitelisted headers
+	h := os.Getenv("WHITELIST_HEADERS")
+	if len(h) == 0 {
+		return headers
+	}
+	for _, header := range strings.Split(h, ",") {
+		headers[header] = nil
+	}
+	return headers
 }
