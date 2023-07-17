@@ -40,15 +40,7 @@ func NewAPIHandler(hosts []string, upstreams []*url.URL, allowedHeaders map[stri
 			return
 		}
 
-		targetQuery := target.RawQuery
-		req.URL.Scheme = target.Scheme
-		req.URL.Host = target.Host
-		req.URL.Path, req.URL.RawPath = joinURLPath(target, req.URL)
-		if targetQuery == "" || req.URL.RawQuery == "" {
-			req.URL.RawQuery = targetQuery + req.URL.RawQuery
-		} else {
-			req.URL.RawQuery = targetQuery + "&" + req.URL.RawQuery
-		}
+		rewriteRequestURL(req, target)
 
 		// anonymise IP address before forwarding to Keytiles.
 		ip := header.AnonymiseIP(req.Header, req.RemoteAddr)
@@ -68,6 +60,19 @@ func (ah *APIHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log.Println(r.URL)
 
 	ah.proxy.ServeHTTP(w, r)
+}
+
+// copied from reverseproxy.go in the std lib.
+func rewriteRequestURL(req *http.Request, target *url.URL) {
+	targetQuery := target.RawQuery
+	req.URL.Scheme = target.Scheme
+	req.URL.Host = target.Host
+	req.URL.Path, req.URL.RawPath = joinURLPath(target, req.URL)
+	if targetQuery == "" || req.URL.RawQuery == "" {
+		req.URL.RawQuery = targetQuery + req.URL.RawQuery
+	} else {
+		req.URL.RawQuery = targetQuery + "&" + req.URL.RawQuery
+	}
 }
 
 // copied from reverseproxy.go in the std lib.

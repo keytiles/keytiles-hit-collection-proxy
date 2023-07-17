@@ -43,6 +43,9 @@ func NewScriptHandler(hosts []string, upstream *url.URL, allowedHeaders map[stri
 	}
 
 	scriptProxy.Director = func(req *http.Request) {
+
+		rewriteRequestURL(req, upstream)
+
 		// anonymise IP address before forwarding to Keytiles.
 		ip := header.AnonymiseIP(req.Header, req.RemoteAddr)
 		req.Header.Set(header.XForwardedFor, ip)
