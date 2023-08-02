@@ -16,6 +16,7 @@ var (
 	ipv6Mask = net.IPMask{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0, 0, 0, 0, 0, 0, 0, 0} // /64
 )
 
+// WhitelisHeaders removes all the headers from the request header except the allowed ones.
 func WhitelistHeaders(reqHeaders http.Header, allowedHeaders map[string]any) {
 	for h := range reqHeaders {
 		if _, ok := allowedHeaders[strings.ToLower(h)]; !ok {
@@ -24,6 +25,8 @@ func WhitelistHeaders(reqHeaders http.Header, allowedHeaders map[string]any) {
 	}
 }
 
+// AnonymiseIP anonymises the IP address by zero-ing the host part of the address.
+// It searches for the X-Forwarded-For header first. If not found, it falls back to the remoteAddr which is Request.RemoteAddr.
 func AnonymiseIP(reqHeaders http.Header, remoteAddr string) string {
 	ip := reqHeaders.Get(XForwardedFor)
 	if len(ip) > 0 {
