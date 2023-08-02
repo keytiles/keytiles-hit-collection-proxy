@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"keytiles-proxy/handler"
+	"keytiles-proxy/handler/header"
 )
 
 var (
@@ -116,6 +117,8 @@ func readWhitelistedHeaders() map[string]any {
 	// get user defined whitelisted headers
 	h := os.Getenv("WHITELIST_HEADERS")
 	if len(h) == 0 {
+		// add x-forwarded-for header which is needed to build visit sessions
+		headers[header.XForwardedFor] = nil
 		return headers
 	}
 	for _, header := range strings.Split(h, ",") {

@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	keytilesHost1 = "api.keytiles.com"
+	keytilesHost1 = "api1.keytiles.com"
 	keytilesHost2 = "api2.keytiles.com"
 )
 
