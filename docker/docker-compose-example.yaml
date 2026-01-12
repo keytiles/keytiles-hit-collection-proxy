@@ -1,0 +1,17 @@
+version: '3'
+services:
+  kt-proxy:
+    image: ${DOCKER_REGISTRY:-keytiles}/kt-proxy:${DOCKER_TAG:-latest}
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    environment:
+      - HOSTS=keytiles1.com,keytiles2.com #CHANEME
+      - KT_API_HOSTS=https://api1.keytiles.com,https://api2.keytiles.com
+      - KT_SCRIPT_HOST=https://scripts.keytiles.com
+      - PORT=9999
+      - WHITELIST_HEADERS=x-forwarded-for
+    ports:
+      - 9999:9999
+    restart: on-failure
+
